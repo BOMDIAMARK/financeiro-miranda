@@ -12,6 +12,9 @@ import { PrevisaoTable } from "@/components/previsao-table";
 import { DividasTable } from "@/components/dividas-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { FormEntrada } from "@/components/form-entrada";
+import { FormSaida } from "@/components/form-saida";
+import { ReceiptUpload } from "@/components/receipt-upload";
 import {
   LayoutDashboard,
   Calendar,
@@ -33,14 +36,19 @@ export default function Home() {
               Familia Miranda — Abril 2026
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              Marcos
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-pink-500" />
-              Kamila
+          <div className="flex items-center gap-2">
+            <ReceiptUpload />
+            <FormEntrada />
+            <FormSaida />
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground ml-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                Marcos
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-pink-500" />
+                Kamila
+              </div>
             </div>
           </div>
         </div>
