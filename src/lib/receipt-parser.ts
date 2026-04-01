@@ -30,14 +30,8 @@ const CATEGORIAS_ENTRADA = [
 
 const FORMAS_PGTO = ["PIX", "Cartão Crédito", "Cartão Débito", "Dinheiro", "Boleto", "Transferência"];
 
-export async function parseReceiptImage(base64Image: string): Promise<ParsedReceipt> {
-  const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: `Você é um assistente especialista em leitura de comprovantes financeiros brasileiros.
-Analise a imagem do comprovante e extraia as informações financeiras.
+const SYSTEM_PROMPT = `Você é um assistente especialista em leitura de comprovantes financeiros brasileiros.
+Analise o comprovante (imagem ou texto de PDF) e extraia as informações financeiras.
 
 Retorne APENAS um JSON válido (sem markdown, sem código) com estes campos:
 {
@@ -60,15 +54,26 @@ Regras:
 - Se for pagamento de boleto, é "saida".
 - Valor sempre no formato brasileiro (1.500,00).
 - Data sempre DD/MM/YYYY.
-- Se não conseguir ler algum campo, use "Outros" ou deixe vazio.`,
-      },
+- Se não conseguir ler algum campo, use "Outros" ou deixe vazio.`;
+
+function parseAIResponse(content: string): ParsedReceipt {
+  const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  try {
+    return JSON.parse(cleaned) as ParsedReceipt;
+  } catch {
+    throw new Error(`Failed to parse AI response: ${cleaned}`);
+  }
+}
+
+export async function parseReceiptImage(base64Image: string): Promise<ParsedReceipt> {
+  const response = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
         content: [
-          {
-            type: "text",
-            text: "Analise este comprovante e extraia os dados financeiros:",
-          },
+          { type: "text", text: "Analise este comprovante e extraia os dados financeiros:" },
           {
             type: "image_url",
             image_url: {
@@ -83,14 +88,31 @@ Regras:
     temperature: 0.1,
   });
 
-  const content = response.choices[0]?.message?.content || "";
+  return parseAIResponse(response.choices[0]?.message?.content || "");
+}
 
-  // Clean potential markdown wrapping
-  const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+export async function parseReceiptPDF(base64PDF: string): Promise<ParsedReceipt> {
+  const response = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Analise este comprovante em PDF e extraia os dados financeiros:" },
+          {
+            type: "file",
+            file: {
+              filename: "comprovante.pdf",
+              file_data: `data:application/pdf;base64,${base64PDF}`,
+            },
+          } as never,
+        ],
+      },
+    ],
+    max_tokens: 500,
+    temperature: 0.1,
+  });
 
-  try {
-    return JSON.parse(cleaned) as ParsedReceipt;
-  } catch {
-    throw new Error(`Failed to parse AI response: ${cleaned}`);
-  }
+  return parseAIResponse(response.choices[0]?.message?.content || "");
 }

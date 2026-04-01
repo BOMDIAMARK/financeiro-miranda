@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Upload, Loader2, Check, X, FileImage } from "lucide-react";
+import { Camera, Upload, Loader2, Check, X, FileImage, FileText } from "lucide-react";
 
 interface ParsedReceipt {
   data: string;
@@ -34,13 +34,19 @@ export function ReceiptUpload({ onSuccess }: { onSuccess?: () => void }) {
   const [responsavel, setResponsavel] = useState("Marcos");
   const [dragOver, setDragOver] = useState(false);
 
+  const isPDF = file?.type === "application/pdf" || file?.name.toLowerCase().endsWith(".pdf");
+
   const handleFile = useCallback((f: File) => {
     setFile(f);
     setParsed(null);
     setSaved(false);
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(f);
+    if (f.type === "application/pdf") {
+      setPreview("pdf");
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => setPreview(e.target?.result as string);
+      reader.readAsDataURL(f);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -48,7 +54,7 @@ export function ReceiptUpload({ onSuccess }: { onSuccess?: () => void }) {
       e.preventDefault();
       setDragOver(false);
       const f = e.dataTransfer.files[0];
-      if (f && f.type.startsWith("image/")) handleFile(f);
+      if (f && (f.type.startsWith("image/") || f.type === "application/pdf")) handleFile(f);
     },
     [handleFile]
   );
@@ -140,11 +146,11 @@ export function ReceiptUpload({ onSuccess }: { onSuccess?: () => void }) {
           >
             <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm font-medium">Arraste o comprovante aqui</p>
-            <p className="text-xs text-muted-foreground mt-1">ou clique para selecionar</p>
+            <p className="text-xs text-muted-foreground mt-1">Imagem ou PDF — clique para selecionar</p>
             <input
               id="receipt-input"
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -158,11 +164,19 @@ export function ReceiptUpload({ onSuccess }: { onSuccess?: () => void }) {
         {preview && (
           <div className="space-y-4">
             <div className="relative">
-              <img
-                src={preview}
-                alt="Comprovante"
-                className="w-full max-h-48 object-contain rounded-lg bg-zinc-100"
-              />
+              {isPDF ? (
+                <div className="w-full h-48 flex flex-col items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                  <FileText className="h-12 w-12 text-red-500 mb-2" />
+                  <p className="text-sm font-medium">{file?.name}</p>
+                  <p className="text-xs text-muted-foreground">PDF</p>
+                </div>
+              ) : (
+                <img
+                  src={preview!}
+                  alt="Comprovante"
+                  className="w-full max-h-48 object-contain rounded-lg bg-zinc-100"
+                />
+              )}
               <button
                 onClick={reset}
                 className="absolute top-2 right-2 bg-white rounded-full p-1 shadow"

@@ -19,6 +19,22 @@ interface EvolutionMessage {
       caption?: string;
       jpegThumbnail?: string;
     };
+    documentMessage?: {
+      mimetype: string;
+      title?: string;
+      caption?: string;
+      fileName?: string;
+    };
+    documentWithCaptionMessage?: {
+      message?: {
+        documentMessage?: {
+          mimetype: string;
+          title?: string;
+          caption?: string;
+          fileName?: string;
+        };
+      };
+    };
   };
   messageType?: string;
 }
@@ -28,6 +44,8 @@ export function extractTextFromMessage(msg: EvolutionMessage): string {
     msg.message?.conversation ||
     msg.message?.extendedTextMessage?.text ||
     msg.message?.imageMessage?.caption ||
+    msg.message?.documentMessage?.caption ||
+    msg.message?.documentWithCaptionMessage?.message?.documentMessage?.caption ||
     ""
   );
 }
@@ -38,6 +56,31 @@ export function isTriggered(text: string): boolean {
 
 export function hasImage(msg: EvolutionMessage): boolean {
   return msg.messageType === "imageMessage" || !!msg.message?.imageMessage;
+}
+
+export function hasDocument(msg: EvolutionMessage): boolean {
+  return (
+    msg.messageType === "documentMessage" ||
+    msg.messageType === "documentWithCaptionMessage" ||
+    !!msg.message?.documentMessage ||
+    !!msg.message?.documentWithCaptionMessage
+  );
+}
+
+export function isPDFDocument(msg: EvolutionMessage): boolean {
+  const doc = msg.message?.documentMessage || msg.message?.documentWithCaptionMessage?.message?.documentMessage;
+  if (!doc) return false;
+  return doc.mimetype === "application/pdf" || (doc.fileName || doc.title || "").toLowerCase().endsWith(".pdf");
+}
+
+export function hasMedia(msg: EvolutionMessage): boolean {
+  return hasImage(msg) || isPDFDocument(msg);
+}
+
+export function getMediaType(msg: EvolutionMessage): "image" | "pdf" | null {
+  if (hasImage(msg)) return "image";
+  if (isPDFDocument(msg)) return "pdf";
+  return null;
 }
 
 export async function sendMessage(to: string, text: string) {

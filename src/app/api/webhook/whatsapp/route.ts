@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   extractTextFromMessage,
   isTriggered,
-  hasImage,
+  hasMedia,
+  getMediaType,
   sendMessage,
   downloadMedia,
   TRIGGER_PREFIX,
   type EvolutionMessage,
 } from "@/lib/whatsapp";
-import { parseReceiptImage } from "@/lib/receipt-parser";
+import { parseReceiptImage, parseReceiptPDF } from "@/lib/receipt-parser";
 import { uploadReceiptToDrive } from "@/lib/drive";
 import { addEntrada, addSaida } from "@/lib/sheets";
 
@@ -57,12 +58,12 @@ export async function POST(request: NextRequest) {
     const sender = msg.key.remoteJid;
 
     // Check trigger
-    if (!isTriggered(text) && !hasImage(msg)) {
+    if (!isTriggered(text) && !hasMedia(msg)) {
       return NextResponse.json({ ok: true, reason: "not triggered" });
     }
 
-    // If triggered without image, send help
-    if (isTriggered(text) && !hasImage(msg)) {
+    // If triggered without media, send help
+    if (isTriggered(text) && !hasMedia(msg)) {
       const command = text.replace(TRIGGER_PREFIX, "").trim().toLowerCase();
 
       if (command === "ajuda" || command === "" || command === "help") {
@@ -71,12 +72,12 @@ export async function POST(request: NextRequest) {
           `🤖 *Bot Financeiro Miranda*
 
 Comandos disponíveis:
-• Envie uma *foto de comprovante* com a legenda \`${TRIGGER_PREFIX}\` para registrar automaticamente
+• Envie uma *foto ou PDF de comprovante* com a legenda \`${TRIGGER_PREFIX}\` para registrar automaticamente
 • \`${TRIGGER_PREFIX} ajuda\` — mostra este menu
 
 O bot vai:
-1. Ler o comprovante com IA
-2. Salvar a imagem no Google Drive
+1. Ler o comprovante com IA (imagem ou PDF)
+2. Salvar o arquivo no Google Drive
 3. Registrar na planilha financeira`
         );
       }
@@ -84,23 +85,28 @@ O bot vai:
       return NextResponse.json({ ok: true });
     }
 
-    // Process image with trigger caption
-    if (hasImage(msg) && isTriggered(text)) {
-      await sendMessage(sender, "⏳ Processando comprovante...");
+    // Process image or PDF with trigger caption
+    const mediaType = getMediaType(msg);
+    if (mediaType && isTriggered(text)) {
+      await sendMessage(sender, `⏳ Processando comprovante (${mediaType === "pdf" ? "PDF" : "imagem"})...`);
 
       try {
-        // Download image from WhatsApp
-        const imageBuffer = await downloadMedia(msg.key.id);
-        const base64 = imageBuffer.toString("base64");
+        // Download media from WhatsApp
+        const mediaBuffer = await downloadMedia(msg.key.id);
+        const base64 = mediaBuffer.toString("base64");
 
-        // Parse with AI
-        const parsed = await parseReceiptImage(base64);
+        // Parse with AI (PDF or image)
+        const parsed = mediaType === "pdf"
+          ? await parseReceiptPDF(base64)
+          : await parseReceiptImage(base64);
 
         // Upload to Drive
+        const ext = mediaType === "pdf" ? "pdf" : "jpg";
+        const mime = mediaType === "pdf" ? "application/pdf" : "image/jpeg";
         const driveResult = await uploadReceiptToDrive(
-          imageBuffer,
-          `whatsapp_${Date.now()}.jpg`,
-          "image/jpeg"
+          mediaBuffer,
+          `whatsapp_${Date.now()}.${ext}`,
+          mime
         );
 
         // Save to sheet

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseReceiptImage } from "@/lib/receipt-parser";
+import { parseReceiptImage, parseReceiptPDF } from "@/lib/receipt-parser";
 import { uploadReceiptToDrive } from "@/lib/drive";
 import { addEntrada, addSaida } from "@/lib/sheets";
 
@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     const base64 = buffer.toString("base64");
 
-    // Parse receipt with AI
-    const parsed = await parseReceiptImage(base64);
+    // Parse receipt with AI (PDF or image)
+    const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const parsed = isPDF
+      ? await parseReceiptPDF(base64)
+      : await parseReceiptImage(base64);
 
     // Upload to Google Drive
     const driveResult = await uploadReceiptToDrive(buffer, file.name, file.type);
