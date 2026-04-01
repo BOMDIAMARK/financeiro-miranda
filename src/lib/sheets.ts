@@ -92,12 +92,19 @@ export interface EntradaInput {
 }
 
 export async function addEntrada(input: EntradaInput) {
-  // Find next empty row
+  // Read data rows (skip header row at index 0)
   const existing = await readEntradas();
-  const nextRow = existing.length + 4; // header is row 3, data starts row 4
+  const dataRows = existing.slice(1); // skip header
+
+  // Find first empty row (row where column B/data is empty)
+  let insertIndex = dataRows.findIndex(r => !r[1] || r[1].trim() === "");
+  if (insertIndex === -1) insertIndex = dataRows.length;
+
+  const rowNumber = insertIndex + 1; // 1-based row number for #
+  const sheetRow = insertIndex + 4; // data starts at row 4 in sheet (row 1=title, 2=total, 3=header)
 
   const values = [[
-    (existing.length + 1).toString(), // #
+    rowNumber.toString(),
     input.data,
     input.categoria,
     input.valor,
@@ -107,7 +114,7 @@ export async function addEntrada(input: EntradaInput) {
     input.observacoes || "",
   ]];
 
-  return appendToSheet(SHEET_NAMES.ENTRADAS, `A${nextRow}:H${nextRow}`, values);
+  return updateCell(SHEET_NAMES.ENTRADAS, `A${sheetRow}:H${sheetRow}`, values);
 }
 
 // ─── SAIDAS (Despesas) ──────────────────────────────────
@@ -126,12 +133,17 @@ export interface SaidaInput {
 
 export async function addSaida(input: SaidaInput) {
   const existing = await readSaidas();
-  // Filter empty rows to get actual count
-  const filledRows = existing.filter(r => r.some(cell => cell && cell.trim()));
-  const nextRow = filledRows.length + 4;
+  const dataRows = existing.slice(1); // skip header
+
+  // Find first empty row (row where column B/data is empty)
+  let insertIndex = dataRows.findIndex(r => !r[1] || r[1].trim() === "");
+  if (insertIndex === -1) insertIndex = dataRows.length;
+
+  const rowNumber = insertIndex + 1;
+  const sheetRow = insertIndex + 4; // data starts at row 4
 
   const values = [[
-    (filledRows.length + 1).toString(),
+    rowNumber.toString(),
     input.data,
     input.categoria,
     input.subcategoria,
@@ -143,7 +155,7 @@ export async function addSaida(input: SaidaInput) {
     input.observacoes || "",
   ]];
 
-  return appendToSheet(SHEET_NAMES.SAIDAS, `A${nextRow}:J${nextRow}`, values);
+  return updateCell(SHEET_NAMES.SAIDAS, `A${sheetRow}:J${sheetRow}`, values);
 }
 
 // ─── PREVISAO STATUS UPDATE ─────────────────────────────
