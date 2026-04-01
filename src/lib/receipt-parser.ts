@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function getOpenAI() {
+  return new OpenAI({ apiKey: process.env.OPENAI_KEY || "" });
+}
 
 export interface ParsedReceipt {
   data: string; // DD/MM/YYYY
@@ -29,7 +31,7 @@ const CATEGORIAS_ENTRADA = [
 const FORMAS_PGTO = ["PIX", "Cartão Crédito", "Cartão Débito", "Dinheiro", "Boleto", "Transferência"];
 
 export async function parseReceiptImage(base64Image: string): Promise<ParsedReceipt> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       {

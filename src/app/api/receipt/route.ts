@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
       sheetResult,
     });
   } catch (error) {
+    console.error("[receipt] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const stack = error instanceof Error ? error.stack : undefined;
+    return NextResponse.json({ error: message, stack }, { status: 500 });
   }
 }
